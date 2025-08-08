@@ -1,7 +1,7 @@
-const CACHE_NAME = "zaq_myapp_v3";
+const CACHE_NAME = "zaq_myapp_v4";
 const API_URL = "https://jsonplaceholder.typicode.com/posts?_limit=5";
 
-// Files to pre-cache
+// Static assets to cache
 const urlsToCache = [
     './',
     './index.html',
@@ -13,24 +13,23 @@ const urlsToCache = [
     './images/icons/web-app-manifest-512x512.png'
 ];
 
-// Install — cache static files AND API data
+// Install event — cache static files AND posts
 self.addEventListener('install', (event) => {
-    console.log('myApp: installing ...');
+    console.log('SW: Installing...');
     event.waitUntil(
         (async () => {
             const cache = await caches.open(CACHE_NAME);
-            console.log('myApp SW: Cache opened -', CACHE_NAME);
             await cache.addAll(urlsToCache);
 
-            // Try to fetch and cache API data
+            // Cache posts just like icons
             try {
                 const response = await fetch(API_URL);
                 if (response.ok) {
                     await cache.put(API_URL, response.clone());
-                    console.log('myApp SW: API data cached during install.');
+                    console.log('SW: Posts cached during install.');
                 }
             } catch (err) {
-                console.warn('myApp SW: Could not fetch API data during install (offline?)');
+                console.warn('SW: Could not fetch posts during install.', err);
             }
 
             self.skipWaiting();
@@ -38,66 +37,51 @@ self.addEventListener('install', (event) => {
     );
 });
 
-// Activate — remove old caches
+// Activate event — clean old caches
 self.addEventListener('activate', (event) => {
-    console.log('myApp: activating ...');
     event.waitUntil(
-        caches.keys().then((keys) => {
-            return Promise.all(
-                keys.filter((key) => key !== CACHE_NAME)
-                    .map((key) => {
-                        console.log('myApp SW: Deleting old cache:', key);
-                        return caches.delete(key);
-                    })
-            );
-        }).then(() => {
-            self.clients.claim();
-        })
+        caches.keys().then(keys =>
+            Promise.all(
+                keys.filter(key => key !== CACHE_NAME)
+                    .map(key => caches.delete(key))
+            )
+        ).then(() => self.clients.claim())
     );
 });
 
-// Fetch handler
+// Fetch event — serve from cache when offline
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // Ignore extension requests
-    if (url.protocol === 'chrome-extension:' || url.protocol === 'moz-extension:') {
-        return;
-    }
-
-    // Handle API requests for posts
+    // Handle posts API requests
     if (event.request.url.startsWith(API_URL.split('?')[0])) {
         event.respondWith(
-            caches.match(API_URL).then((cachedResponse) => {
-                const networkFetch = fetch(event.request)
-                    .then((response) => {
-                        if (response.ok) {
-                            caches.open(CACHE_NAME).then((cache) => {
-                                cache.put(API_URL, response.clone());
-                            });
-                        }
-                        return response;
-                    })
-                    .catch(() => {
-                        console.warn('myApp SW: Network failed for API.');
-                        return cachedResponse || caches.match('./offline-message.json');
-                    });
-
-                return networkFetch;
-            })
+            fetch(event.request)
+                .then(response => {
+                    if (response.ok) {
+                        caches.open(CACHE_NAME).then(cache => {
+                            cache.put(API_URL, response.clone());
+                        });
+                    }
+                    return response;
+                })
+                .catch(() => {
+                    console.log('SW: Serving cached posts.');
+                    return caches.match(API_URL)
+                        .then(cached => cached || caches.match('./offline-message.json'));
+                })
         );
         return;
     }
 
-    // Handle other static files
+    // Handle other requests
     event.respondWith(
-        caches.match(event.request).then((response) => {
-            return response || fetch(event.request).catch(() => {
-                console.warn('myApp SW: Static request failed, offline.');
+        caches.match(event.request).then(response =>
+            response || fetch(event.request).catch(() => {
                 if (event.request.mode === 'navigate') {
                     return caches.match('./index.html');
                 }
-            });
-        })
+            })
+        )
     );
 });
