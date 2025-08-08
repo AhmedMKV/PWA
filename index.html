@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#6366f1" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>ZaqApp</title>
+</head>
+<body>
+  <div class="container">
+    <section id="app-info">
+      <img id="app-icon" alt="App Icon" />
+      <h1 id="app-name"></h1>
+      <p id="app-desc"></p>
+    </section>
+
+    <section id="shortcuts">
+      <h2>Shortcuts</h2>
+      <div id="shortcuts-list"></div>
+    </section>
+
+    <section id="screenshots">
+      <h2>Screenshots</h2>
+      <div id="screenshots-list"></div>
+    </section>
+
+    <div id="offline" class="hidden">
+      🚫 Connection lost — showing cached posts.
+    </div>
+
+    <section id="posts">
+      <h2>Latest Posts</h2>
+      <div id="posts-container" class="grid"></div>
+    </section>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
